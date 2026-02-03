@@ -29,8 +29,8 @@ Before starting, verify you have access to required tools:
 ### Phase 1: Parse the Ticket
 
 1. **Extract identifiers** from the issue:
-   - Environment/workspace ID
-   - Object ID (e.g., newsletter ID, campaign ID, user ID)
+   - Environment/tenant/workspace ID
+   - Resource ID (e.g., order ID, user ID, transaction ID, record ID)
    - Timestamps (when reported, when issue occurred)
    - User/account information
    - Error messages or symptoms described
