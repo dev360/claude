@@ -3,9 +3,12 @@
   "version": "1.0.0",
   "description": "Personal agents and tools",
   "author": {
-    "name": "dev360"
+    "name": "dev360",
+    "url": "https://github.com/dev360"
   },
   "repository": "https://github.com/dev360/claude",
+  "license": "MIT",
+  "keywords": ["triage", "debugging", "investigation", "retrospective"],
   "agents": "./agents/",
   "mcpServers": "./.mcp.json"
 }

@@ -1,10 +1,15 @@
 {
   "name": "dev360",
+  "description": "Personal Claude Code plugins",
+  "owner": {
+    "name": "dev360",
+    "url": "https://github.com/dev360"
+  },
   "plugins": [
     {
       "name": "plugins",
-      "source": ".",
-      "description": "Personal agents and tools"
+      "description": "Personal agents and tools",
+      "source": "./"
     }
   ]
 }
