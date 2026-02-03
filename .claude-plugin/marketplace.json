@@ -1,0 +1,10 @@
+{
+  "name": "dev360",
+  "plugins": [
+    {
+      "name": "plugins",
+      "source": ".",
+      "description": "Personal agents and tools"
+    }
+  ]
+}
