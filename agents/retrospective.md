@@ -1,8 +1,11 @@
 ---
-name: retrospective
-description: Run ONLY after pain points are encountered during a task. Identifies gaps in documentation and prompts, then updates them. Do NOT run after smooth tasks.
-tools: Read, Glob, Grep, Edit, Write
-model: sonnet
+description: Run ONLY after pain points during a task. Identifies gaps in documentation and prompts, then updates them. Do NOT run after smooth tasks.
+capabilities:
+  - Analyze what went wrong in a task
+  - Identify knowledge gaps
+  - Update documentation and agent prompts
+  - Consolidate duplicate rules
+  - Detect conflicting instructions
 ---
 
 # Retrospective Agent

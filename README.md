@@ -1,41 +1,37 @@
-# Claude Agents
+# Triage Toolkit
 
-Personal Claude Code agents for investigation and self-improvement workflows.
+Claude Code plugin for issue investigation and self-improvement workflows.
 
 ## Installation
 
-### Option 1: User-level agents (recommended)
-
-Copy agents to your Claude Code user directory:
-
 ```bash
-mkdir -p ~/.claude/agents
-cp .claude/agents/*.md ~/.claude/agents/
+# Install globally (available in all projects)
+claude plugin install /path/to/this/repo --scope user
+
+# Or install for current project only
+claude plugin install /path/to/this/repo --scope project
 ```
-
-### Option 2: Project-level
-
-Clone this repo and work from within it, or symlink `.claude/` to your projects.
 
 ## Agents
 
-### `/triage` - Issue Investigation
+### `triage`
 
-Automated triage for bug reports, support tickets, and incidents.
+Automated investigation for bug reports, support tickets, and incidents.
 
 **Workflow:**
-1. Parse ticket identifiers
-2. STOP - verify correct account with human
-3. Gather evidence (logs, audit trails, session replays)
-4. Trace to code
-5. STOP - present findings for human validation
-6. Document root cause
+1. Parse ticket identifiers (env ID, timestamps, user info)
+2. **STOP** - verify correct account with human
+3. Gather evidence from logs, audit trails, session replays
+4. Trace symptoms to code
+5. **STOP** - present findings for validation
+6. Document root cause with evidence
 
-**Required MCP servers:**
-- `chrome-devtools` or `playwright` - browser automation for internal tools
-- `linear` (or github/jira) - issue tracking
+**Usage:**
+```
+> Use the triage agent to investigate this issue: [link or description]
+```
 
-### `/retrospective` - Self-Evolution
+### `retrospective`
 
 Run ONLY after painful tasks to improve documentation and prompts.
 
@@ -43,30 +39,45 @@ Run ONLY after painful tasks to improve documentation and prompts.
 - Multiple corrections needed
 - Wasted effort from wrong assumptions
 - Same problem twice
-- Knowledge gaps
 
 **Do NOT run** after smooth tasks.
 
-## MCP Configuration
-
-The `.mcp.json` includes common servers. Copy to your home directory or project:
-
-```bash
-cp .mcp.json ~/.mcp.json
+**Usage:**
+```
+> Run a retrospective on what just happened
 ```
 
-Pre-approved permissions are in `.claude/settings.json`.
+## Required MCP Servers
 
-## Usage
+This plugin includes MCP server configs in `.mcp.json`. The agents need:
 
-```bash
-# In any project with these agents available
-claude
+- **Browser automation** (`chrome-devtools` or `playwright`) - for navigating internal tools
+- **Issue tracking** (`linear`, `github`, or similar) - for reading tickets
 
-# Then use the triage agent
-> /triage https://linear.app/team/issue/123
-> /triage "Investigate why newsletter stopped sending for account 12345"
+## Pre-approving Permissions
 
-# After a painful session
-> /retrospective
+To avoid permission prompts for MCP tools, add to your settings:
+
+**User-level** (`~/.claude/settings.json`):
+```json
+{
+  "permissions": {
+    "allow": [
+      "mcp__chrome-devtools__*",
+      "mcp__playwright__*",
+      "mcp__linear__*"
+    ]
+  }
+}
+```
+
+## Plugin Structure
+
+```
+.claude-plugin/
+  plugin.json       # Plugin manifest
+agents/
+  triage.md         # Issue investigation agent
+  retrospective.md  # Self-evolution agent
+.mcp.json           # MCP server configurations
 ```

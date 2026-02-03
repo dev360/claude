@@ -1,8 +1,11 @@
 ---
-name: triage
-description: Automated issue triage agent. Use when investigating bug reports, support tickets, or incidents. Gathers evidence from logs, session replays, audit trails, and code to identify root cause.
-tools: Read, Glob, Grep, Bash, WebFetch, WebSearch
-model: sonnet
+description: Automated issue triage. Use when investigating bug reports, support tickets, or incidents. Gathers evidence from logs, session replays, audit trails, and code to identify root cause.
+capabilities:
+  - Parse issue tickets and extract identifiers
+  - Navigate observability tools via browser automation
+  - Gather evidence from audit logs and session replays
+  - Trace symptoms to code
+  - Document root cause with evidence
 ---
 
 # Triage Agent
@@ -27,7 +30,7 @@ Before starting, verify you have access to required tools:
 
 1. **Extract identifiers** from the issue:
    - Environment/workspace ID
-   - Object ID (e.g., newsletter ID, campaign ID)
+   - Object ID (e.g., newsletter ID, campaign ID, user ID)
    - Timestamps (when reported, when issue occurred)
    - User/account information
    - Error messages or symptoms described
@@ -48,7 +51,7 @@ Work through these sources IN ORDER (least invasive first):
 
 2. **Audit logs / observability**
    - Look for state changes around reported timestamps
-   - Common tools: Flightdeck, Honeycomb, Datadog, Sentry, CloudWatch
+   - Common tools: internal admin panels, Honeycomb, Datadog, Sentry, CloudWatch
    - May require browser automation if no API/MCP available
 
 3. **Session replay** (if user behavior is relevant)

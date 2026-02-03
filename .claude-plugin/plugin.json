@@ -1,0 +1,13 @@
+{
+  "name": "triage-toolkit",
+  "version": "1.0.0",
+  "description": "Issue investigation and self-improvement agents for bug triage workflows",
+  "author": {
+    "name": "dev360"
+  },
+  "repository": "https://github.com/dev360/claude",
+  "license": "MIT",
+  "keywords": ["triage", "debugging", "investigation", "retrospective"],
+  "agents": "./agents/",
+  "mcpServers": "./.mcp.json"
+}
