@@ -7,7 +7,7 @@
   },
   "plugins": [
     {
-      "name": "plugins",
+      "name": "dev360",
       "description": "Personal agents and tools",
       "source": "./"
     }
