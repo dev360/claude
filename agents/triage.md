@@ -1,5 +1,7 @@
 ---
 description: Automated issue triage. Use when investigating bug reports, support tickets, or incidents. Gathers evidence from logs, session replays, audit trails, and code to identify root cause.
+tools:
+  - "*"
 capabilities:
   - Parse issue tickets and extract identifiers
   - Navigate observability tools via browser automation
