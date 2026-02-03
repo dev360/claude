@@ -9,7 +9,7 @@ Personal Claude Code agents for investigation and self-improvement workflows.
 claude plugin marketplace add dev360/claude
 
 # Install plugin
-claude plugin install plugins@dev360
+claude plugin install dev360@dev360
 ```
 
 ## Agents
