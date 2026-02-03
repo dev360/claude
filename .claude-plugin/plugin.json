@@ -9,6 +9,5 @@
   "repository": "https://github.com/dev360/claude",
   "license": "MIT",
   "keywords": ["triage", "debugging", "investigation", "retrospective"],
-  "agents": "./agents/",
   "mcpServers": "./.mcp.json"
 }
