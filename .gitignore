@@ -1,0 +1,11 @@
+# OS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
+
+# Secrets (if any local overrides)
+.env
+.env.local
