@@ -1,6 +1,9 @@
 {
   "chrome-devtools": {
     "command": "npx",
-    "args": ["@anthropic-ai/chrome-devtools-mcp@latest"]
+    "args": [
+      "chrome-devtools-mcp@latest",
+      "--isolated=true"
+    ]
   }
 }
