@@ -10,7 +10,23 @@ claude plugin marketplace add dev360/claude
 claude plugin install dev@dev360 --scope user
 claude plugin install review@dev360 --scope user
 claude plugin install debugger@dev360 --scope user
+claude plugin install plan@dev360 --scope user
 ```
+
+## Update
+
+```bash
+# Pull latest from marketplace
+claude plugin marketplace update dev360
+
+# Update individual plugins
+claude plugin update dev@dev360 --scope user
+claude plugin update review@dev360 --scope user
+claude plugin update debugger@dev360 --scope user
+claude plugin update plan@dev360 --scope user
+```
+
+Restart Claude after updating.
 
 ## Plugins
 
@@ -31,6 +47,17 @@ Agents are selected based on change size:
 - **Large changes** (300+ lines): adds `idioms`, `architecture`
 
 Each agent hunts for specific issues — logic errors, edge cases, missing error handling, security holes, blast radius, breaking API changes, test gaps, non-idiomatic patterns, and code smells. Findings are consolidated with pass/warn/fail verdicts per agent.
+
+### `plan`
+
+Plan review via 9 parallel specialized agents. Invoked with `/plan`. Tailored for product engineers.
+
+Agents are selected based on plan scope:
+- **Task** (ticket, bug fix, Figma handoff): `problem`, `prior-art`, `technical`
+- **Feature** (multi-file, user-facing): adds `user-journey`, `ui-ux`, `delivery`
+- **Epic** (new product area, large capability): adds `strategy`, `information-architecture`, `reusability`
+
+Hunts for vague requirements, missing user flows, unspecified interaction states, codebase pattern conflicts, PLG gaps, navigation dead-ends, premature abstractions, delivery risks, and missing rollback strategies. Produces a Definition of Ready checklist and pass/warn/fail verdicts per agent.
 
 ### `debugger`
 

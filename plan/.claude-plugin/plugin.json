@@ -1,0 +1,8 @@
+{
+  "name": "plan",
+  "version": "1.0.0",
+  "description": "Feature planning with 9 parallel specialized agents",
+  "author": {
+    "name": "dev360"
+  }
+}

@@ -21,6 +21,11 @@
       "name": "debugger",
       "source": "./debugger",
       "description": "Browser debugging and testing via Chrome DevTools"
+    },
+    {
+      "name": "plan",
+      "source": "./plan",
+      "description": "Plan review with 9 parallel specialized agents"
     }
   ]
 }
