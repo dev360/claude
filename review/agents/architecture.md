@@ -3,6 +3,7 @@ name: architecture
 description: Code smell detector that recognizes when established patterns would reduce complexity. Smell first, pattern as remedy, proportionality always.
 tools: Read, Grep, Glob
 model: opus
+color: yellow
 ---
 
 # PR Review: Code Smells & Pattern Opportunities

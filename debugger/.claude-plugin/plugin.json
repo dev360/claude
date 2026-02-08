@@ -1,0 +1,7 @@
+{
+  "name": "debugger",
+  "description": "Browser debugging and testing via Chrome DevTools",
+  "author": {
+    "name": "dev360"
+  }
+}

@@ -3,6 +3,7 @@ name: contracts
 description: Code review agent focused exclusively on API boundaries, type safety, and breaking changes between components.
 tools: Read
 model: opus
+color: yellow
 ---
 
 # PR Review: Contracts & API Boundaries

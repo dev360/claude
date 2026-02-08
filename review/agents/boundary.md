@@ -3,6 +3,7 @@ name: boundary
 description: Code review agent focused exclusively on edge cases and boundary conditions — the inputs nobody thought about.
 tools: Read
 model: opus
+color: yellow
 ---
 
 # PR Review: Edge Cases & Boundary Conditions

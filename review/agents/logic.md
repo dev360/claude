@@ -3,6 +3,7 @@ name: logic
 description: Code review agent focused exclusively on logic correctness — wrong conditions, broken control flow, algorithm errors.
 tools: Read
 model: opus
+color: yellow
 ---
 
 # PR Review: Logic & Correctness

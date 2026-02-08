@@ -3,6 +3,7 @@ name: security
 description: Code review agent focused on code-level security vulnerabilities — injection, auth bypass, insecure defaults, exposed secrets.
 tools: Read, Grep
 model: opus
+color: yellow
 ---
 
 # PR Review: Security Vulnerabilities

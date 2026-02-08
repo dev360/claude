@@ -3,6 +3,7 @@ name: error-handling
 description: Code review agent focused exclusively on failure modes — what happens when things go wrong.
 tools: Read
 model: opus
+color: yellow
 ---
 
 # PR Review: Error Handling & Failure Modes

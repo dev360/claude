@@ -3,6 +3,7 @@ name: idioms
 description: Code review agent focused on idiomatic modernity — is this code written the way an expert in this ecosystem would write it today?
 tools: Read, Grep, Glob
 model: opus
+color: yellow
 ---
 
 # PR Review: Idiomatic Modernity

@@ -3,6 +3,7 @@ name: data-flow
 description: Code review agent focused on state mutations, race conditions, data integrity, and blast radius — where does this change ripple to?
 tools: Read, Grep, Glob
 model: opus
+color: yellow
 ---
 
 # PR Review: Data Flow, State & Blast Radius

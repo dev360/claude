@@ -3,6 +3,7 @@ name: test-gaps
 description: Code review agent focused exclusively on test adequacy — are the tests sufficient for the changed code?
 tools: Read, Grep, Glob
 model: opus
+color: yellow
 ---
 
 # PR Review: Test Adequacy
