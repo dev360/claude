@@ -96,6 +96,10 @@ Sort all findings:
 **Scope**: [X files changed, +Y/-Z lines]
 **Agents run**: [list which agents ran and why]
 
+**Verdicts**: `logic: pass` | `boundary: warn (2)` | `security: pass` | `error-handling: fail (1)` | ...
+
+> Derive verdict per agent from its findings: **fail** = has CRITICALs, **warn** = has WARNINGs (no CRITICALs), **pass** = only NOTEs or clean. Show count of highest-severity findings in parentheses.
+
 ---
 
 ### Critical Issues
