@@ -6,6 +6,7 @@
 |-----------|-------|
 | Bug investigation, support tickets, incidents | `triage` |
 | After painful task (self-evolve) | `retrospective` |
+| Code review before merge | `/review` skill → 9 parallel agents in `review/agents/` (scope-dependent) |
 
 ## Triage Agent
 

@@ -9,3 +9,5 @@
 # Secrets (if any local overrides)
 .env
 .env.local
+
+examples/

@@ -1,4 +1,5 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "dev360",
   "description": "Personal Claude Code plugins",
   "owner": {
@@ -7,9 +8,19 @@
   },
   "plugins": [
     {
-      "name": "dev360",
-      "description": "Personal agents and tools",
-      "source": "./"
+      "name": "dev",
+      "source": "./dev",
+      "description": "Personal agents and tools"
+    },
+    {
+      "name": "review",
+      "source": "./review",
+      "description": "Code review with 9 parallel specialized agents"
+    },
+    {
+      "name": "debugger",
+      "source": "./debugger",
+      "description": "Browser debugging and testing via Chrome DevTools"
     }
   ]
 }
