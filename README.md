@@ -1,54 +1,37 @@
-# Claude Plugins
+# dev360 Claude Plugins
 
-Personal Claude Code agents for investigation and self-improvement workflows.
-
-## Installation
+## Install
 
 ```bash
 # Add marketplace
 claude plugin marketplace add dev360/claude
 
-# Install plugin
-claude plugin install dev360@dev360
+# Install plugins
+claude plugin install dev@dev360 --scope user
+claude plugin install review@dev360 --scope user
+claude plugin install debugger@dev360 --scope user
 ```
 
-## Agents
+## Plugins
 
-### `triage`
+### `dev`
 
-Automated investigation for bug reports, support tickets, and incidents.
+Investigation and self-improvement agents.
 
-**Workflow:**
-1. Parse ticket identifiers
-2. **STOP** - verify correct account with human
-3. Gather evidence from logs, audit trails, session replays
-4. Trace symptoms to code
-5. **STOP** - present findings for validation
-6. Document root cause with evidence
+- **triage** - Automated bug/incident investigation. Parses tickets, gathers evidence from logs and session replays, traces symptoms to code. Stops for human verification at key checkpoints.
+- **retrospective** - Post-mortem agent that runs after painful tasks to improve docs and prompts. Only triggers when corrections were needed or effort was wasted.
 
-### `retrospective`
+### `review`
 
-Run ONLY after painful tasks to improve documentation and prompts.
+Code review via 9 parallel specialized agents. Invoked with `/review`.
 
-**Triggers:**
-- Multiple corrections needed
-- Wasted effort from wrong assumptions
-- Same problem twice
+Agents are selected based on change size:
+- **Small changes** (1-50 lines): `logic`, `boundary`, `error-handling`, `security`
+- **Medium changes** (51-300 lines): adds `data-flow`, `contracts`, `test-gaps`
+- **Large changes** (300+ lines): adds `idioms`, `architecture`
 
-**Do NOT run** after smooth tasks.
+Each agent hunts for specific issues — logic errors, edge cases, missing error handling, security holes, blast radius, breaking API changes, test gaps, non-idiomatic patterns, and code smells. Findings are consolidated with pass/warn/fail verdicts per agent.
 
-## Pre-approving Permissions
+### `debugger`
 
-To avoid permission prompts for MCP tools, add to `~/.claude/settings.json`:
-
-```json
-{
-  "permissions": {
-    "allow": [
-      "mcp__chrome-devtools__*",
-      "mcp__playwright__*",
-      "mcp__linear__*"
-    ]
-  }
-}
-```
+Browser debugging via Chrome DevTools MCP. Launches a subagent that can navigate pages, click elements, fill forms, monitor network requests, capture console errors, and take screenshots. Used automatically when Claude needs eyes in the browser, or explicitly via `/debug`.
