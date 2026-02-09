@@ -83,10 +83,16 @@ Collect all agent results and produce a single consolidated review.
 If multiple agents flag the same line/issue, keep the most specific finding and note which agents agreed.
 
 ### Severity Ranking
-Sort all findings:
-1. **CRITICAL** — Must fix before merge. Will cause bugs, security holes, or data corruption.
-2. **WARNING** — Should fix. Will cause problems under specific conditions or degrades codebase quality.
-3. **NOTE** — Consider fixing. Not urgent but represents improvement opportunity.
+Sort all findings by priority. Number every finding sequentially (#1, #2, #3...) across all levels.
+
+| Level | Meaning |
+|-------|---------|
+| **P0** | Must fix. Bugs, security holes, data corruption. |
+| **P1** | Should fix before merge. Conditional problems. |
+| **P2** | Should fix. Quality, maintainability, latent risk. |
+| **P3** | Consider fixing. Minor tech debt. |
+| **Style** | Design system / naming / component usage. |
+| **Policy** | Dependency / CI / org rule violations. |
 
 ### Output Format
 
@@ -98,26 +104,32 @@ Sort all findings:
 
 **Verdicts**: `logic: pass` | `boundary: warn (2)` | `security: pass` | `error-handling: fail (1)` | ...
 
-> Derive verdict per agent from its findings: **fail** = has CRITICALs, **warn** = has WARNINGs (no CRITICALs), **pass** = only NOTEs or clean. Show count of highest-severity findings in parentheses.
+> Derive verdict per agent from its findings: **fail** = has P0s, **warn** = has P1/P2 (no P0s), **pass** = only P3/Style/Policy or clean. Show count of highest-severity findings in parentheses.
 
 ---
 
-### Critical Issues
-> Items that must be fixed before merge
+### P0 — Must Fix
+> Will cause bugs, security holes, or data corruption
 
-- **[agent]** `file:line` — Description
+- **#N** **[agent]** `file:line` — Description (P0)
   Detail and suggested fix
 
-### Warnings
-> Items that should be addressed
+### P1 — Should Fix Before Merge
+> Will cause problems under specific conditions
 
-- **[agent]** `file:line` — Description
+- **#N** **[agent]** `file:line` — Description (P1)
   Detail and suggested fix
 
-### Notes
-> Items to consider
+### P2 — Should Fix
+> Degrades quality or has latent risk
 
-- **[agent]** `file:line` — Description
+- **#N** **[agent]** `file:line` — Description (P2)
+  Detail and suggested fix
+
+### P3 / Style / Policy
+> Improvement opportunities
+
+- **#N** **[agent]** `file:line` — Description (P3|Style|Policy)
   Detail
 
 ---
@@ -142,3 +154,11 @@ If all agents report clean, still show the Review Coverage section. The value of
 - Findings must reference specific lines in the diff.
 - Do not suggest refactoring code that wasn't touched in this change.
 - The `data-flow` agent is the exception — it actively searches beyond the diff for blast radius.
+
+## Post-Review
+
+After presenting the review, always suggest:
+
+> **Tip:** 
+> Run `/review:review-save` to save this review as a document (Notion, local MD, or Confluence) before the context is lost. 
+> After you fix the issues and ready to merge, run `/review:review-measure` to compare your review against PR feedback from co-workers and CI bots.
