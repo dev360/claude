@@ -4,22 +4,46 @@ You are the orchestrator for a comprehensive code review. You will gather the di
 
 ## Step 1: Gather Context
 
-Run these commands to understand what changed:
+Run these commands to understand what changed. The key challenge is getting the **developer's changes only** — excluding noise from merges of the base branch into the feature branch.
+
+### 1a: Detect base branch
 
 ```bash
-# Get the diff — try branch diff first, fall back to working changes
-git diff main...HEAD 2>/dev/null || git diff HEAD
+# Detect the base branch — check for a PR first, then fall back to default branch
+BASE=$(gh pr view --json baseRefName -q .baseRefName 2>/dev/null \
+  || git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||' \
+  || echo "main")
+echo "Base branch: $BASE"
+```
+
+### 1b: Get the diff (local-first)
+
+```bash
+# Get the diff of this branch vs the base branch
+git diff "$BASE"...HEAD
 ```
 
 ```bash
 # Get changed file list with stats
-git diff main...HEAD --stat 2>/dev/null || git diff HEAD --stat
+git diff "$BASE"...HEAD --stat
 ```
 
 ```bash
 # Count lines changed
-git diff main...HEAD --shortstat 2>/dev/null || git diff HEAD --shortstat
+git diff "$BASE"...HEAD --shortstat
 ```
+
+### 1c: Sanity check — detect merge noise
+
+Before proceeding, verify the diff looks reasonable. If the diff touches **50+ files** or **5000+ lines**, it likely includes noise from merges of the base branch into the feature branch. In that case:
+
+1. **Try `gh pr diff`** — if a PR exists, GitHub's diff algorithm correctly excludes merge noise:
+   ```bash
+   gh pr diff
+   gh pr diff --stat
+   ```
+2. If no PR exists, warn the user: *"This diff looks unusually large. Has the base branch been merged into this branch? Consider pushing and opening a PR, then re-running the review — `gh pr diff` handles merge noise correctly."*
+3. Only proceed with the large diff if the user confirms it's accurate.
 
 Read the FULL content of every changed file (not just the diff) — agents need surrounding context.
 
