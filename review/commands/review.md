@@ -82,17 +82,23 @@ In large diff mode, do NOT embed diffs or file contents in agent prompts. Write 
 #### Step 3a: Write review artifacts to disk
 
 ```bash
-rm -rf /tmp/review && mkdir -p /tmp/review/clusters
+rm -rf /tmp/review && mkdir -p /tmp/review/clusters /tmp/review/agents
 ```
 
-1. **Write the full diff**:
+1. **Copy agent prompts** to `/tmp/review/agents/` so they are accessible regardless of which repo you are in:
+```bash
+cp review/agents/*.md /tmp/review/agents/
+```
+If the agent prompt files are not at `review/agents/` relative to the current directory, find them relative to THIS skill file's location (the `review/` directory in the claude toolkit repo).
+
+2. **Write the full diff**:
 ```bash
 git diff origin/main > /tmp/review/full-diff.patch
 ```
 
-2. **Cluster files by directory**: Group changed files by their nearest shared directory (e.g., `src/services/payments/`, `src/lib/auth/`). Aim for 3-8 clusters. If a directory has only 1 small file, merge it with the closest related cluster.
+3. **Cluster files by directory**: Group changed files by their nearest shared directory (e.g., `src/services/payments/`, `src/lib/auth/`). Aim for 3-8 clusters. If a directory has only 1 small file, merge it with the closest related cluster.
 
-3. **Write the file manifest** to `/tmp/review/manifest.md`:
+4. **Write the file manifest** to `/tmp/review/manifest.md`:
 ```
 ## Changed Files Manifest (50 files, +2100/-900 lines)
 ### Cluster 1: src/services/payments/ (8 files)
@@ -104,7 +110,7 @@ git diff origin/main > /tmp/review/full-diff.patch
 ...
 ```
 
-4. **For each cluster**, write a cluster diff and file list:
+5. **For each cluster**, write a cluster diff and file list:
 ```bash
 git diff origin/main -- src/services/payments/ > /tmp/review/clusters/cluster-1-payments.patch
 
@@ -114,10 +120,10 @@ src/services/payments/types.ts" > /tmp/review/clusters/cluster-1-payments.files
 
 #### Step 3b: Review in waves (one cluster at a time)
 
-For each cluster, launch the core agents (`logic`, `boundary`, `error-handling`, `security`, `contracts`) in parallel. Each agent's prompt should be:
+For each cluster, launch the core agents (`logic`, `boundary`, `error-handling`, `security`, `contracts`) in parallel. Read the agent prompt from `/tmp/review/agents/{name}.md` and use its contents as the start of each Task prompt:
 
 ```
-[contents of review/agents/{name}.md]
+[contents of /tmp/review/agents/{name}.md]
 
 ## Your Review Scope
 Cluster [N] of [M]: files in [directory/].
@@ -134,10 +140,10 @@ Read the diff first, then read each source file for surrounding context. Perform
 
 #### Step 3c: Cross-cutting pass (best effort)
 
-After all cluster waves complete, attempt one pass each for `data-flow`, `test-gaps`, `idioms`, `architecture`:
+After all cluster waves complete, attempt one pass each for `data-flow`, `test-gaps`, `idioms`, `architecture`. Read each agent prompt from `/tmp/review/agents/{name}.md`:
 
 ```
-[contents of review/agents/{name}.md]
+[contents of /tmp/review/agents/{name}.md]
 
 ## Your Review Scope
 Full PR — cross-cutting analysis.
