@@ -77,9 +77,9 @@ For agents that need search tools (data-flow, test-gaps, idioms, architecture), 
 
 ### Large diff mode (20+ files OR 2000+ lines)
 
-#### Step 3a: Write review artifacts to disk
+In large diff mode, do NOT embed diffs or file contents in agent prompts. Write everything to disk and give agents file paths to read. Process clusters in sequential waves so the orchestrator's context stays manageable.
 
-Write all review context to `/tmp/review/` so agents can read what they need without the orchestrator holding everything in its own context.
+#### Step 3a: Write review artifacts to disk
 
 ```bash
 rm -rf /tmp/review && mkdir -p /tmp/review/clusters
@@ -104,59 +104,53 @@ git diff origin/main > /tmp/review/full-diff.patch
 ...
 ```
 
-4. **For each cluster**, write a cluster diff containing only that cluster's hunks:
+4. **For each cluster**, write a cluster diff and file list:
 ```bash
-# Example for cluster 1 (payments):
 git diff origin/main -- src/services/payments/ > /tmp/review/clusters/cluster-1-payments.patch
-```
 
-5. **For each cluster**, write a file listing the full paths of files in that cluster:
-```bash
-# Example:
 echo "src/services/payments/handler.ts
 src/services/payments/types.ts" > /tmp/review/clusters/cluster-1-payments.files
 ```
 
-#### Step 3b: Launch local-scope agents (logic, boundary, error-handling, security, contracts)
+#### Step 3b: Review in waves (one cluster at a time)
 
-These agents review code within files — they don't need cross-file search.
-
-Launch **one instance per agent per cluster**. Each agent's prompt should be:
+For each cluster, launch the core agents (`logic`, `boundary`, `error-handling`, `security`, `contracts`) in parallel. Each agent's prompt should be:
 
 ```
 [contents of review/agents/{name}.md]
 
-You are reviewing cluster [N/M]: files in [directory/].
-Focus your review on the files in this cluster.
+## Your Review Scope
+Cluster [N] of [M]: files in [directory/].
 
-Read these files to get your review context:
-- /tmp/review/clusters/cluster-N-name.patch — the diff for your cluster
-- /tmp/review/clusters/cluster-N-name.files — list of files in your cluster (read each one for full context)
-- /tmp/review/manifest.md — manifest of ALL changed files for awareness
+## Context Files (use Read tool)
+- Diff: /tmp/review/clusters/cluster-N-name.patch
+- File list: /tmp/review/clusters/cluster-N-name.files (read each source file listed for full context)
+- Manifest: /tmp/review/manifest.md (awareness of full PR scope)
+
+Read the diff first, then read each source file for surrounding context. Perform your review and report findings.
 ```
 
-Launch as many as possible per message (up to 10 Task calls per message). Use multiple messages if needed.
+**Wait for each wave to complete before starting the next.** The orchestrator accumulates only the short findings text between waves — not the file contents.
 
-#### Step 3c: Launch cross-cutting agents (data-flow, test-gaps, idioms, architecture)
+#### Step 3c: Cross-cutting pass (best effort)
 
-These agents need to see the full picture and search the codebase.
-
-Launch **one instance per agent** (not per cluster). Each agent's prompt should be:
+After all cluster waves complete, attempt one pass each for `data-flow`, `test-gaps`, `idioms`, `architecture`:
 
 ```
 [contents of review/agents/{name}.md]
 
-This is a large diff. Your review context is on disk:
-- /tmp/review/full-diff.patch — the complete diff
-- /tmp/review/manifest.md — file manifest with clusters and line counts
+## Your Review Scope
+Full PR — cross-cutting analysis.
 
-Read the manifest first to understand the scope, then read the full diff.
-Use the Read tool to pull specific source files as needed.
-Use Grep/Glob to search the broader codebase.
-Be selective — read the files most relevant to your analysis rather than all of them.
+## Context Files (use Read tool)
+- Full diff: /tmp/review/full-diff.patch
+- Manifest: /tmp/review/manifest.md
+
+Read the manifest first to understand scope, then read the diff.
+Use Grep/Glob to search the broader codebase. Read source files selectively — focus on the most impactful changes.
 ```
 
-These agents already have Read, Grep, and Glob access via the general-purpose subagent type.
+If any cross-cutting agent hits context limits, note it in the report: "⚠️ [agent] skipped — diff too large for cross-cutting analysis."
 
 ## Step 4: Synthesize Results
 
