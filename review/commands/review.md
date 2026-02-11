@@ -12,7 +12,14 @@ git diff origin/main
 git diff origin/main --stat
 ```
 
-Read the full content of every changed file — agents need surrounding context.
+### Determine review mode
+
+Count the changed files and total lines from the stat output.
+
+- **Standard mode**: under 20 changed files AND under 2000 total changed lines. Read the full content of every changed file — agents need surrounding context.
+- **Large diff mode**: 20+ changed files OR 2000+ total changed lines. Do NOT read all files yet. Instead, prepare for clustered review (see Step 3).
+
+If using large diff mode, announce it: "Large diff detected (X files, +Y/-Z lines). Using clustered review to stay within context limits."
 
 ## Step 2: Assess Scope and Select Agents
 
@@ -52,6 +59,8 @@ Announce which agents you selected and why before launching.
 
 For each selected agent, launch a Task with `subagent_type="general-purpose"`.
 
+### Standard mode (under 20 files AND under 2000 lines)
+
 Each agent's prompt MUST include:
 1. The FULL content of the agent's prompt file (read from `review/agents/{name}.md`)
 2. The complete diff
@@ -66,12 +75,95 @@ Task(subagent_type="general-purpose", prompt="[contents of review/agents/logic.m
 
 For agents that need search tools (data-flow, test-gaps, idioms, architecture), make sure to note in their prompt that they have access to Grep, Glob, and Read tools.
 
+### Large diff mode (20+ files OR 2000+ lines)
+
+#### Step 3a: Write review artifacts to disk
+
+Write all review context to `/tmp/review/` so agents can read what they need without the orchestrator holding everything in its own context.
+
+```bash
+rm -rf /tmp/review && mkdir -p /tmp/review/clusters
+```
+
+1. **Write the full diff**:
+```bash
+git diff origin/main > /tmp/review/full-diff.patch
+```
+
+2. **Cluster files by directory**: Group changed files by their nearest shared directory (e.g., `src/services/payments/`, `src/lib/auth/`). Aim for 3-8 clusters. If a directory has only 1 small file, merge it with the closest related cluster.
+
+3. **Write the file manifest** to `/tmp/review/manifest.md`:
+```
+## Changed Files Manifest (50 files, +2100/-900 lines)
+### Cluster 1: src/services/payments/ (8 files)
+- src/services/payments/handler.ts (+120/-45)
+- src/services/payments/types.ts (+30/-10)
+...
+### Cluster 2: src/services/auth/ (5 files)
+- src/services/auth/middleware.ts (+15/-5)
+...
+```
+
+4. **For each cluster**, write a cluster diff containing only that cluster's hunks:
+```bash
+# Example for cluster 1 (payments):
+git diff origin/main -- src/services/payments/ > /tmp/review/clusters/cluster-1-payments.patch
+```
+
+5. **For each cluster**, write a file listing the full paths of files in that cluster:
+```bash
+# Example:
+echo "src/services/payments/handler.ts
+src/services/payments/types.ts" > /tmp/review/clusters/cluster-1-payments.files
+```
+
+#### Step 3b: Launch local-scope agents (logic, boundary, error-handling, security, contracts)
+
+These agents review code within files — they don't need cross-file search.
+
+Launch **one instance per agent per cluster**. Each agent's prompt should be:
+
+```
+[contents of review/agents/{name}.md]
+
+You are reviewing cluster [N/M]: files in [directory/].
+Focus your review on the files in this cluster.
+
+Read these files to get your review context:
+- /tmp/review/clusters/cluster-N-name.patch — the diff for your cluster
+- /tmp/review/clusters/cluster-N-name.files — list of files in your cluster (read each one for full context)
+- /tmp/review/manifest.md — manifest of ALL changed files for awareness
+```
+
+Launch as many as possible per message (up to 10 Task calls per message). Use multiple messages if needed.
+
+#### Step 3c: Launch cross-cutting agents (data-flow, test-gaps, idioms, architecture)
+
+These agents need to see the full picture and search the codebase.
+
+Launch **one instance per agent** (not per cluster). Each agent's prompt should be:
+
+```
+[contents of review/agents/{name}.md]
+
+This is a large diff. Your review context is on disk:
+- /tmp/review/full-diff.patch — the complete diff
+- /tmp/review/manifest.md — file manifest with clusters and line counts
+
+Read the manifest first to understand the scope, then read the full diff.
+Use the Read tool to pull specific source files as needed.
+Use Grep/Glob to search the broader codebase.
+Be selective — read the files most relevant to your analysis rather than all of them.
+```
+
+These agents already have Read, Grep, and Glob access via the general-purpose subagent type.
+
 ## Step 4: Synthesize Results
 
 Collect all agent results and produce a single consolidated review.
 
 ### Deduplication
-If multiple agents flag the same line/issue, keep the most specific finding and note which agents agreed.
+If multiple agents flag the same line/issue, keep the most specific finding and note which agents agreed. In large diff mode, merge findings from multiple instances of the same agent type (e.g., logic-cluster-1 and logic-cluster-2) under a single agent heading.
 
 ### Severity Ranking
 Sort all findings by priority. Number every finding sequentially (#1, #2, #3...) across all levels.
@@ -92,6 +184,7 @@ Sort all findings by priority. Number every finding sequentially (#1, #2, #3...)
 
 **Scope**: [X files changed, +Y/-Z lines]
 **Agents run**: [list which agents ran and why]
+**Mode**: [Standard | Large diff (N clusters)]
 
 **Verdicts**: `logic: pass` | `boundary: warn (2)` | `security: pass` | `error-handling: fail (1)` | ...
 
@@ -150,6 +243,6 @@ If all agents report clean, still show the Review Coverage section. The value of
 
 After presenting the review, always suggest:
 
-> **Tip:** 
-> Run `/review:review-save` to save this review as a document (Notion, local MD, or Confluence) before the context is lost. 
+> **Tip:**
+> Run `/review:review-save` to save this review as a document (Notion, local MD, or Confluence) before the context is lost.
 > After you fix the issues and ready to merge, run `/review:review-measure` to compare your review against PR feedback from co-workers and CI bots.
