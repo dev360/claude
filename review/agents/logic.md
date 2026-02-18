@@ -44,6 +44,7 @@ For each changed function/block, verify:
 - [ ] Assignment vs comparison: `=` where `==`/`===` was intended?
 - [ ] Variable shadowing: is a local variable accidentally hiding an outer variable?
 - [ ] Copy vs reference: is the code mutating a copy thinking it's the original, or vice versa?
+- [ ] Symmetry: when new code is added next to existing code that follows a pattern (e.g., clearing selection A next to clearing selection B), does the new code have the SAME guards, conditions, and nesting as the existing code? If line N is inside an `if` block but the new line N+1 is outside it, that's likely a bug — the new code should have the same conditional protection.
 
 ## Output Format
 

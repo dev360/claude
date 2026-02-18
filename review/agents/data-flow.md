@@ -66,6 +66,8 @@ For EVERY changed function, method, export, type, or interface in the diff, you 
 - [ ] For every removed or renamed export: is anything still importing the old name?
 - [ ] For every changed event name or payload shape: Grep for listeners. Will they handle the new payload?
 - [ ] For every changed database query or schema: what other code reads this table/collection?
+- [ ] For every getter/predicate whose meaning **expanded** (returns true in more cases): do ALL consumers handle the new cases, or do some assume the old, narrower meaning?
+- [ ] **Reverse blast radius**: for every new state variable introduced, Grep for existing operations that create/delete/transform that entity. Do they maintain consistency with the new state? (e.g., delete operation doesn't clean up a new selection set → phantom references)
 
 ### How to Search
 

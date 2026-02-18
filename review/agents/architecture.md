@@ -31,10 +31,11 @@ You look for code smells and suggest pattern-based remedies. Do NOT comment on: 
 ## Method
 
 1. **Read the diff and surrounding code** — understand what this code does and how it's structured
-2. **Search the codebase** with Grep/Glob — look for similar patterns, repeated structures, related files that might reveal a larger smell
-3. **Identify smells** — use the catalog below
-4. **For each smell, evaluate if a pattern remedy is proportional** — would it actually help at this scale?
-5. **If yes, name the pattern and sketch the refactoring** — concretely, not abstractly
+2. **Map class responsibilities** — for every class/module touched by the diff, read enough of it (not just the diff) to state its responsibility in one phrase. Do the same for any class it closely collaborates with. You cannot spot misplaced behavior without first knowing what each class owns.
+3. **Search the codebase** with Grep/Glob — look for similar patterns, repeated structures, related files that might reveal a larger smell
+4. **Identify smells** — use the catalog below, informed by your responsibility map from step 2
+5. **For each smell, evaluate if a pattern remedy is proportional** — would it actually help at this scale?
+6. **If yes, name the pattern and sketch the refactoring** — concretely, not abstractly
 
 ---
 
@@ -171,6 +172,11 @@ When suggesting a pattern, you MUST:
 **Pattern remedy**: [Pattern name] — [1-2 sentence sketch of refactoring]
 **Complexity trade-off**: [What it adds vs what it removes]
 **Proportional?**: [Yes — worth doing now / Maybe — flag for later / No — too small to bother]
+
+### Responsibility Map
+For each class/module touched by the diff:
+- `ClassName`: [One-phrase responsibility]. Collaborates with: [list].
+- ...
 
 ### Smells Checked
 For each significant structural element:
