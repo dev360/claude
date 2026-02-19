@@ -4,13 +4,15 @@ You are the orchestrator for a comprehensive code review. You will gather the di
 
 ## Step 1: Gather the Diff
 
-```bash
-git diff origin/main
-```
+Diff the current branch as if it were a PR against the main branch. This means diffing only the changes on this branch since it diverged from main — **not** changes made on main since then.
 
 ```bash
-git diff origin/main --stat
+# Use merge-base to get only this branch's changes (like a PR diff)
+git diff $(git merge-base origin/main HEAD)
+git diff $(git merge-base origin/main HEAD) --stat
 ```
+
+**Never use `git diff origin/main`** — that includes unrelated changes from main and will produce a wildly inflated diff.
 
 ### Determine review mode
 
@@ -93,7 +95,7 @@ If the agent prompt files are not at `review/agents/` relative to the current di
 
 2. **Write the full diff**:
 ```bash
-git diff origin/main > /tmp/review/full-diff.patch
+git diff $(git merge-base origin/main HEAD) > /tmp/review/full-diff.patch
 ```
 
 3. **Cluster files by directory**: Group changed files by their nearest shared directory (e.g., `src/services/payments/`, `src/lib/auth/`). Aim for 3-8 clusters. If a directory has only 1 small file, merge it with the closest related cluster.
@@ -112,7 +114,7 @@ git diff origin/main > /tmp/review/full-diff.patch
 
 5. **For each cluster**, write a cluster diff and file list:
 ```bash
-git diff origin/main -- src/services/payments/ > /tmp/review/clusters/cluster-1-payments.patch
+git diff $(git merge-base origin/main HEAD) -- src/services/payments/ > /tmp/review/clusters/cluster-1-payments.patch
 
 echo "src/services/payments/handler.ts
 src/services/payments/types.ts" > /tmp/review/clusters/cluster-1-payments.files
