@@ -1,31 +1,98 @@
 # PR Review Orchestrator
 
-You are the orchestrator for a comprehensive code review. You will gather the diff, assess its scope, select the appropriate review agents, launch them in parallel, and synthesize their findings.
+You are the orchestrator for a comprehensive code review. Your job is to plan the review work, execute it in waves of agents, and synthesize findings — all while keeping your own context lean by using disk as the primary storage.
 
-## Step 1: Gather the Diff
+## Step 0: Context Warning
+
+**Before doing anything else**, tell the user:
+
+> **Warning: Code reviews are context-heavy.**
+> This review will launch multiple agents across your diff. To avoid compaction mid-review, either:
+> 1. Run `/compact` now to free up context
+> 2. Start the review in a fresh window
+>
+> All review artifacts will be written to disk, so the review can survive compaction — but synthesis quality is better with a clean context.
+>
+> Ready to proceed?
+
+Wait for the user to confirm before continuing.
+
+## Step 1: Set Up Review Workspace
+
+### 1a: Determine the branch-scoped workspace
+
+```bash
+REVIEW_BRANCH=$(git rev-parse --abbrev-ref HEAD | tr '/' '-')
+REVIEW_DIR="/tmp/review/${REVIEW_BRANCH}"
+rm -rf "$REVIEW_DIR"
+mkdir -p "$REVIEW_DIR"/{clusters,agents,findings}
+```
+
+All review artifacts live under this branch-scoped directory. Two reviews on different branches will never clobber each other.
+
+### 1b: Gather the diff
 
 Diff the current branch as if it were a PR against the main branch. This means diffing only the changes on this branch since it diverged from main — **not** changes made on main since then.
 
 ```bash
-# Use merge-base to get only this branch's changes (like a PR diff)
-git diff $(git merge-base origin/main HEAD)
-git diff $(git merge-base origin/main HEAD) --stat
+MERGE_BASE=$(git merge-base origin/main HEAD)
+git diff "$MERGE_BASE" > "$REVIEW_DIR/full-diff.patch"
+git diff "$MERGE_BASE" --stat > "$REVIEW_DIR/diff-stat.txt"
 ```
 
 **Never use `git diff origin/main`** — that includes unrelated changes from main and will produce a wildly inflated diff.
 
-### Determine review mode
+### 1c: Copy agent prompts to workspace
 
-Count the changed files and total lines from the stat output.
+```bash
+cp review/agents/*.md "$REVIEW_DIR/agents/"
+```
 
-- **Standard mode**: under 20 changed files AND under 2000 total changed lines. Read the full content of every changed file — agents need surrounding context.
-- **Large diff mode**: 20+ changed files OR 2000+ total changed lines. Do NOT read all files yet. Instead, prepare for clustered review (see Step 3).
+If the agent prompt files are not at `review/agents/` relative to the current directory, find them relative to THIS skill file's location (the `review/` directory in the claude toolkit repo).
 
-If using large diff mode, announce it: "Large diff detected (X files, +Y/-Z lines). Using clustered review to stay within context limits."
+### 1d: Write the file manifest
+
+Read the stat output and write a manifest to `$REVIEW_DIR/manifest.md`:
+
+```markdown
+## Changed Files Manifest (X files, +Y/-Z lines)
+### Cluster 1: src/services/payments/ (8 files)
+- src/services/payments/handler.ts (+120/-45)
+- src/services/payments/types.ts (+30/-10)
+...
+### Cluster 2: src/services/auth/ (5 files)
+...
+```
+
+Group changed files by their nearest shared directory. Aim for 3-8 clusters. If a directory has only 1 small file, merge it with the closest related cluster.
+
+### 1e: Write cluster diffs
+
+For each cluster, write a scoped diff and file list:
+
+```bash
+git diff "$MERGE_BASE" -- src/services/payments/ > "$REVIEW_DIR/clusters/cluster-1-payments.patch"
+
+echo "src/services/payments/handler.ts
+src/services/payments/types.ts" > "$REVIEW_DIR/clusters/cluster-1-payments.files"
+```
+
+### 1f: Announce the workspace
+
+Tell the user:
+```
+Review workspace: /tmp/review/{branch}/
+  full-diff.patch    — complete diff
+  diff-stat.txt      — stat summary
+  manifest.md        — clustered file list
+  agents/            — agent prompt files
+  clusters/          — per-cluster diffs and file lists
+  findings/          — agent results (populated during review)
+```
 
 ## Step 2: Assess Scope and Select Agents
 
-Based on the size and nature of changes, select which agents to run:
+Read `$REVIEW_DIR/diff-stat.txt` for file count and total lines.
 
 ### Small changes (1-50 lines, 1-3 files)
 Run the **core 5** agents:
@@ -49,11 +116,11 @@ Run ALL 10 agents:
 
 Note: `architecture` is a **code smell detector** — it looks for structural symptoms (God objects, shotgun surgery, switch sprawl, etc.) and suggests proportional pattern remedies. It does NOT do abstract "is this well-designed" commentary.
 
-Note: `runtime-safety` looks for runtime divergence from static assumptions — where types lie about runtime shapes, ungated code runs on all users, UI state leaks across feature boundaries, and framework lifecycle creates unexpected execution. Added after FLO-3286 (production crash from ORM type annotation lying about runtime shape).
+Note: `runtime-safety` looks for runtime divergence from static assumptions — where types lie about runtime shapes, ungated code runs on all users, UI state leaks across feature boundaries, and framework lifecycle creates unexpected execution.
 
 ### Override: Always include these if detected
 Regardless of size:
-- **New module/class with significant structure** → add `architecture` (new structure may introduce smells)
+- **New module/class with significant structure** → add `architecture`
 - **Type/interface changes** → add `contracts`
 - **Test files changed** → add `test-gaps`
 - **Dependency changes** (package.json, Cargo.toml, etc.) → add `security`
@@ -61,115 +128,69 @@ Regardless of size:
 
 Announce which agents you selected and why before launching.
 
-## Step 3: Launch Agents in Parallel
+## Step 3: Plan and Execute Waves
 
-For each selected agent, launch a Task with `subagent_type="general-purpose"`.
+### Hard limit: never launch more than 5 agents in a single wave.
 
-### Standard mode (under 20 files AND under 2000 lines)
+This is not a suggestion — context will blow up if you exceed this. You cannot see your own token usage, and launching too many agents in parallel will cause compaction or failure. You may launch fewer based on diff complexity, but **never more than 5**.
 
-Each agent's prompt MUST include:
-1. The FULL content of the agent's prompt file (read from `review/agents/{name}.md`)
-2. The complete diff
-3. The full content of every changed file
+You have discretion to organize waves however makes sense for the diff. Consider:
 
-Launch ALL selected agents in a single message (parallel execution).
+- **By cluster**: Run 5 agents on cluster A, then 5 agents on cluster B
+- **By agent priority**: Run core 5 first, then supplementary agents
+- **Hybrid**: Core agents on the biggest cluster first, then fan out
 
-Example:
-```
-Task(subagent_type="general-purpose", prompt="[contents of review/agents/logic.md]\n\n## Diff\n[diff]\n\n## Changed Files\n[full file contents]")
-```
+For small diffs (1 cluster, 5 or fewer agents), this may be a single wave. For large diffs with many clusters and 10 agents, this could be 4-6 waves. Plan the waves, announce them, then execute.
 
-For agents that need search tools (data-flow, test-gaps, idioms, architecture), make sure to note in their prompt that they have access to Grep, Glob, and Read tools.
+### Agent prompt template
 
-### Large diff mode (20+ files OR 2000+ lines)
+Every agent is launched as `Task(subagent_type="general-purpose")`. **Never embed diff or file contents in the prompt.** Give agents file paths and let them read from disk.
 
-In large diff mode, do NOT embed diffs or file contents in agent prompts. Write everything to disk and give agents file paths to read. Process clusters in sequential waves so the orchestrator's context stays manageable.
-
-#### Step 3a: Write review artifacts to disk
-
-```bash
-rm -rf /tmp/review && mkdir -p /tmp/review/clusters /tmp/review/agents
-```
-
-1. **Copy agent prompts** to `/tmp/review/agents/` so they are accessible regardless of which repo you are in:
-```bash
-cp review/agents/*.md /tmp/review/agents/
-```
-If the agent prompt files are not at `review/agents/` relative to the current directory, find them relative to THIS skill file's location (the `review/` directory in the claude toolkit repo).
-
-2. **Write the full diff**:
-```bash
-git diff $(git merge-base origin/main HEAD) > /tmp/review/full-diff.patch
-```
-
-3. **Cluster files by directory**: Group changed files by their nearest shared directory (e.g., `src/services/payments/`, `src/lib/auth/`). Aim for 3-8 clusters. If a directory has only 1 small file, merge it with the closest related cluster.
-
-4. **Write the file manifest** to `/tmp/review/manifest.md`:
-```
-## Changed Files Manifest (50 files, +2100/-900 lines)
-### Cluster 1: src/services/payments/ (8 files)
-- src/services/payments/handler.ts (+120/-45)
-- src/services/payments/types.ts (+30/-10)
-...
-### Cluster 2: src/services/auth/ (5 files)
-- src/services/auth/middleware.ts (+15/-5)
-...
-```
-
-5. **For each cluster**, write a cluster diff and file list:
-```bash
-git diff $(git merge-base origin/main HEAD) -- src/services/payments/ > /tmp/review/clusters/cluster-1-payments.patch
-
-echo "src/services/payments/handler.ts
-src/services/payments/types.ts" > /tmp/review/clusters/cluster-1-payments.files
-```
-
-#### Step 3b: Review in waves (one cluster at a time)
-
-For each cluster, launch the core agents (`logic`, `boundary`, `error-handling`, `security`, `contracts`) in parallel. Read the agent prompt from `/tmp/review/agents/{name}.md` and use its contents as the start of each Task prompt:
+Read the agent's prompt file from `$REVIEW_DIR/agents/{name}.md` and use its contents as the start of the Task prompt, followed by:
 
 ```
-[contents of /tmp/review/agents/{name}.md]
+[full contents of $REVIEW_DIR/agents/{name}.md]
 
 ## Your Review Scope
-Cluster [N] of [M]: files in [directory/].
+[Cluster N of M: files in directory/   OR   Full PR — cross-cutting analysis.]
 
-## Context Files (use Read tool)
-- Diff: /tmp/review/clusters/cluster-N-name.patch
-- File list: /tmp/review/clusters/cluster-N-name.files (read each source file listed for full context)
-- Manifest: /tmp/review/manifest.md (awareness of full PR scope)
+## Context (read from disk)
+- Diff: $REVIEW_DIR/clusters/cluster-N-name.patch   (or full-diff.patch for cross-cutting)
+- File list: $REVIEW_DIR/clusters/cluster-N-name.files
+- Manifest: $REVIEW_DIR/manifest.md
+- You have full filesystem access — use Grep, Glob, Read to explore the broader codebase as needed.
 
-Read the diff first, then read each source file for surrounding context. Perform your review and report findings.
+Read the diff first, then read each changed source file for surrounding context. Your context window is yours — use it for exploration, not just the diff.
+
+## Output
+Write your findings to: $REVIEW_DIR/findings/{agent}.md  (or {agent}-cluster-N.md if scoped to a cluster)
+
+Use this format in the file:
+### {Agent Name} — Verdict: {pass|warn|fail}
+[Your findings using the severity format: P0/P1/P2/P3/Style/Policy]
+
+After writing to disk, return ONLY a single line:
+{agent}: {pass|warn|fail} ({count} findings)
 ```
 
-**Wait for each wave to complete before starting the next.** The orchestrator accumulates only the short findings text between waves — not the file contents.
+### Between waves
 
-#### Step 3c: Cross-cutting pass (best effort)
+After each wave completes, you receive only the short verdict lines. Do NOT read the findings files between waves — keep your context lean. Just note the verdicts and proceed to the next wave.
 
-After all cluster waves complete, attempt one pass each for `data-flow`, `test-gaps`, `idioms`, `architecture`. Read each agent prompt from `/tmp/review/agents/{name}.md`:
+### Cross-cutting agents
 
-```
-[contents of /tmp/review/agents/{name}.md]
-
-## Your Review Scope
-Full PR — cross-cutting analysis.
-
-## Context Files (use Read tool)
-- Full diff: /tmp/review/full-diff.patch
-- Manifest: /tmp/review/manifest.md
-
-Read the manifest first to understand scope, then read the diff.
-Use Grep/Glob to search the broader codebase. Read source files selectively — focus on the most impactful changes.
-```
-
-If any cross-cutting agent hits context limits, note it in the report: "⚠️ [agent] skipped — diff too large for cross-cutting analysis."
+Agents that analyze across the full PR (`data-flow`, `test-gaps`, `idioms`, `architecture`) should get the full diff path and the manifest. They have full filesystem access and should explore the codebase broadly — they have their own context windows for this.
 
 ## Step 4: Synthesize Results
 
-Collect all agent results and produce a single consolidated review.
+After all waves complete, read the findings from disk:
+
+```
+$REVIEW_DIR/findings/*.md
+```
 
 ### Deduplication
-If multiple agents flag the same line/issue, keep the most specific finding and note which agents agreed. In large diff mode, merge findings from multiple instances of the same agent type (e.g., logic-cluster-1 and logic-cluster-2) under a single agent heading.
+If multiple agents flag the same line/issue, keep the most specific finding and note which agents agreed. Merge findings from multiple runs of the same agent (e.g., logic-cluster-1 and logic-cluster-2) under a single agent heading.
 
 ### Severity Ranking
 Sort all findings by priority. Number every finding sequentially (#1, #2, #3...) across all levels.
@@ -190,7 +211,7 @@ Sort all findings by priority. Number every finding sequentially (#1, #2, #3...)
 
 **Scope**: [X files changed, +Y/-Z lines]
 **Agents run**: [list which agents ran and why]
-**Mode**: [Standard | Large diff (N clusters)]
+**Waves**: [N waves, how organized]
 
 **Verdicts**: `logic: pass` | `boundary: warn (2)` | `security: pass` | `error-handling: fail (1)` | ...
 
@@ -252,3 +273,6 @@ After presenting the review, always suggest:
 > **Tip:**
 > Run `/review:review-save` to save this review as a document (Notion, local MD, or Confluence) before the context is lost.
 > After you fix the issues and ready to merge, run `/review:review-measure` to compare your review against PR feedback from co-workers and CI bots.
+>
+> Review artifacts are preserved at: `/tmp/review/{branch}/`
+> You can re-read findings at any time, even in a new session.
