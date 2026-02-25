@@ -28,25 +28,28 @@ If using large diff mode, announce it: "Large diff detected (X files, +Y/-Z line
 Based on the size and nature of changes, select which agents to run:
 
 ### Small changes (1-50 lines, 1-3 files)
-Run the **core 4** agents:
+Run the **core 5** agents:
 - `logic` — always run
 - `boundary` — always run
 - `error-handling` — always run
 - `security` — always run
+- `runtime-safety` — always run
 
 ### Medium changes (51-300 lines, 4-10 files)
-Run the core 4 PLUS:
+Run the core 5 PLUS:
 - `data-flow` — blast radius matters more with multi-file changes
 - `contracts` — interface changes more likely
 - `test-gaps` — test coverage verification
 
 ### Large changes (300+ lines, 10+ files)
-Run ALL 9 agents:
-- Core 4: `logic`, `boundary`, `error-handling`, `security`
+Run ALL 10 agents:
+- Core 5: `logic`, `boundary`, `error-handling`, `security`, `runtime-safety`
 - Medium additions: `data-flow`, `contracts`, `test-gaps`
 - Large additions: `idioms`, `architecture`
 
 Note: `architecture` is a **code smell detector** — it looks for structural symptoms (God objects, shotgun surgery, switch sprawl, etc.) and suggests proportional pattern remedies. It does NOT do abstract "is this well-designed" commentary.
+
+Note: `runtime-safety` looks for runtime divergence from static assumptions — where types lie about runtime shapes, ungated code runs on all users, UI state leaks across feature boundaries, and framework lifecycle creates unexpected execution. Added after FLO-3286 (production crash from ORM type annotation lying about runtime shape).
 
 ### Override: Always include these if detected
 Regardless of size:
@@ -54,6 +57,7 @@ Regardless of size:
 - **Type/interface changes** → add `contracts`
 - **Test files changed** → add `test-gaps`
 - **Dependency changes** (package.json, Cargo.toml, etc.) → add `security`
+- **Code that reads model/ORM data, iterates collections, or runs in component getters** → add `runtime-safety`
 
 Announce which agents you selected and why before launching.
 

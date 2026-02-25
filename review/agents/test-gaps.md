@@ -48,6 +48,7 @@ You need to find relevant test files for the changed code. Use Glob to find test
 - [ ] Mocks don't hide the bugs they should catch? (mocking the function under test)
 - [ ] Mock return values are realistic? (not just `{}` or `null`)
 - [ ] When the real implementation changes, will the mocks need updating? (coupling risk)
+- [ ] Mock shape diversity: code processes multiple entity types/variants? Do mocks cover all variant shapes? (e.g., a factory that always produces arrays will miss crashes on object-shaped variants)
 
 **Deleted or changed tests**:
 - [ ] Test deleted: was the behavior removed, or was the test inconvenient?
