@@ -81,6 +81,11 @@ If the commit fails due to a pre-commit hook:
 - Create a **new** commit (do NOT amend — the previous commit didn't happen)
 - Repeat until the commit succeeds
 
+## Safety Rules
+
+- **NEVER force push.** Do not run `git push --force` or `git push --force-with-lease` unless the user explicitly asks you to and you have confirmed with them first. Force pushing rewrites shared history and can destroy other people's work.
+- **NEVER amend published commits** without explicit user approval.
+
 ## Step 7: Confirm
 
 Show the user the resulting commit(s):
