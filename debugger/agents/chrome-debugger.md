@@ -1,7 +1,6 @@
 ---
 name: chrome-debugger
 description: Use this agent when you need to interact with a web application through Chrome browser automation for testing, debugging, or verification purposes.
-model: opus
 color: cyan
 ---
 
