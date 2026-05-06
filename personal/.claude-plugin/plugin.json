@@ -1,0 +1,12 @@
+{
+  "name": "personal",
+  "version": "1.0.0",
+  "description": "Personal writing assistance — voice profiles for Christian's public-facing posts",
+  "author": {
+    "name": "dev360",
+    "url": "https://github.com/dev360"
+  },
+  "repository": "https://github.com/dev360/claude",
+  "license": "MIT",
+  "keywords": ["writing", "voice", "personal"]
+}

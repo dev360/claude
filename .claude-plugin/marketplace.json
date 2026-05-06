@@ -26,6 +26,11 @@
       "name": "plan",
       "source": "./plan",
       "description": "Plan review with 9 parallel specialized agents"
+    },
+    {
+      "name": "personal",
+      "source": "./personal",
+      "description": "Personal writing - voice profiles for public-facing posts"
     }
   ]
 }
