@@ -15,7 +15,7 @@ If `dump-screen` returns empty (cross-session, unattached — see Gotcha 2), do 
 Detect:
 - **Project name**: basename of the repo (or the tree directory if already in tree-mode).
 - **Tree layout state**: are we already in a `<project>-tree/main/` layout? Look for a sibling `main/` directory, or check the current working directory's name.
-- **Tooling**: is `mise worktree:new` available? (`mise tasks ls --all --hidden | grep worktree`). Is `zellij` running? Is the host GitHub? (`gh auth status`).
+- **Tooling**: is `mise worktree:new` available? (`mise tasks ls --all --hidden | grep worktree`). If not, the fallback in Step 2 uses plain `git worktree add` — the task is convenience, not a hard dependency. Is `zellij` running? Is the host GitHub? (`gh auth status`).
 
 If the project isn't in tree-mode yet, propose the one-time setup before doing anything else:
 
@@ -47,20 +47,26 @@ Announce the plan to the user before branching.
 
 ## Step 2: Branch out each unit
 
-From `<project>-tree/main/`, prefer mise if available:
+From `<project>-tree/main/`, prefer the `mise worktree:new` task if installed:
 
 ```bash
 mise worktree:new <type>/<slug>
 ```
 
-The mise task handles: fetching origin, detecting `main/` structure, creating the branch from `origin/main`, setting upstream tracking, running `mise trust --all` in the new worktree.
+The task handles: fetching origin, auto-detecting the `main/` tree structure, stripping the Conventional Commits prefix for the dir name (so `feat/foo-bar` → `crease-tree/foo-bar/`), creating the branch from `origin/main`, setting upstream tracking, and running `mise trust --all` in the new worktree.
 
-If mise isn't installed, fall back to:
+**Source for the mise task** (one of the dev360 dotfiles): [github.com/dev360/dotfiles → `.config/mise/tasks/worktree/`](https://github.com/dev360/dotfiles/tree/main/.config/mise/tasks/worktree). The `worktree/` directory ships four scripts: `new`, `delete`, `list`, `dev`. If you don't use mise or don't want a custom task, the fallback below is fine — the task is convenience, not necessity.
+
+**Fallback** (plain git, no mise required):
 
 ```bash
 git fetch origin
-git worktree add -b <type>/<slug> ../<slug> origin/main
+# strip the type prefix manually for the dir name:
+SLUG="<slug-without-type-prefix>"
+git worktree add -b <type>/<slug> "../$SLUG" origin/main
 ```
+
+The fallback gives you the same end state (new branch + new worktree dir as a sibling of `main/`), it just doesn't auto-handle the prefix stripping, upstream setup, or `mise trust`.
 
 ## Step 3: Write the worktree's MEMORY.md
 
