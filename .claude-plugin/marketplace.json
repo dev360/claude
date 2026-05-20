@@ -10,7 +10,12 @@
     {
       "name": "dev",
       "source": "./dev",
-      "description": "Personal agents and tools"
+      "description": "Personal dev tools"
+    },
+    {
+      "name": "agent",
+      "source": "./agent",
+      "description": "Personal agent tools"
     },
     {
       "name": "review",
