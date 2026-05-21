@@ -30,6 +30,16 @@ The Claude TUI's suggested-next-prompt placeholder (e.g., `❯ push it` inside t
 
 Pushing branches and opening PRs are user-visible actions. **Even when the suggestion says `push it`, you must get explicit user confirmation unless durable authorization for pushes on this project has been recorded.**
 
+## Core principle: the north star is a full integration test
+
+**Every orchestrated workstream exists to reach a working end-to-end test, not just to land a branch.** When you collapse multiple branches into main, "done" means the integrated system runs against real or mocked dependencies and produces the expected behavior end-to-end. Free APIs (yfinance, public RSS feeds, websockets) often make a real e2e cheaper than expected — prefer real-API paths over mocks when the cost is just a network call.
+
+**You must hold the integration test in mind during every merge decision:**
+- Will this branch's commits compile against the others' shapes? (locked wire contracts help, but verify.)
+- Did each branch ship a mock publisher / consumer so siblings could develop in isolation? Use those during the first e2e attempt, then swap to real APIs.
+- After each merge, **boot the dev stack** (`mise dev` or equivalent) and watch the relevant streams flow. Do not batch merges then test once — a stack that breaks in the middle of a 5-branch collapse is much harder to debug than one that breaks after a single merge.
+- If you reach a hard blocker on a real-API path, fall back to a mock and ship the e2e with a clear note. Don't let perfect be the enemy of "the dashboard renders a signal that came from a real candle."
+
 ## Step 0: Project context detection
 
 Detect:
@@ -203,10 +213,31 @@ For each completed worker, reuse the SAME tab — dev and review are sequential:
 
 4. **Verify the review claude is in the correct directory** (same check as Step 4: `lsof` cwd of the claude pid). If the cd didn't land, `/quit` and restart with `cd && claude`.
 
-5. **Read the review findings yourself and make the success/fail call.** When `/review:review` finishes, findings land in `/tmp/review/<branch>/`. Open them. Compare against the PRD/MEMORY.md success criteria. **You make the verdict, not the worker, not the review skill.** Possible outcomes:
-   - **Succeeded** — all acceptance gates clear, no blocker findings. Surface a one-line summary to the user and proceed to Step 7 (PR/CI). If push authorization is durable, push and open the PR; otherwise ask.
-   - **Blockers found** — route them back to the same worker tab: `/quit` the review claude, relaunch dev claude, prompt with the specific findings and pointers to the offending files. Loop back to Step 5.
+5. **You must capture the full review synthesis before quitting the review claude.** The `/review:review` skill prints its synthesis to the TUI and may NOT write it as a file — only the per-cluster reports land in `/tmp/review/<branch>/findings/*.md`. **The synthesis is the most valuable artifact** (top P0/P1 priority list, cross-cluster correlations, the "fix these first" cluster). You must preserve it explicitly:
+
+   ```bash
+   # While the review tab is still alive, capture the full scrollback
+   zellij --session <project>-workers action go-to-tab-name <slug>
+   zellij --session <project>-workers action dump-screen --full /tmp/synthesis-<slug>-full.txt
+
+   # Find the synthesis section (starts at "Synthesizing" / "All waves done" / "Reading them for synthesis"
+   # and ends at the "Brewed/Cooked/Baked for Xm Ys" timer line)
+   grep -n -E "Synthesiz|all waves done|Reading them for synthesis|Brewed for|Cooked for|Baked for" /tmp/synthesis-<slug>-full.txt
+   # Extract the range, save as SYNTHESIS.md
+   sed -n '<start>,<end>p' /tmp/synthesis-<slug>-full.txt > /tmp/review/<branch>/SYNTHESIS.md
+
+   # Back it up out of /tmp into the repo (survives /tmp wipe on reboot)
+   mkdir -p <repo>/.reviews/<branch>/
+   cp /tmp/review/<branch>/SYNTHESIS.md <repo>/.reviews/<branch>/
+   cp -r /tmp/review/<branch>/findings <repo>/.reviews/<branch>/
+   ```
+
+6. **You must read the synthesis AND the per-cluster findings yourself, then make the success/fail call.** Compare against the PRD/MEMORY.md success criteria. **You make the verdict, not the worker, not the review skill.** Possible outcomes:
+   - **Succeeded** — all acceptance gates clear, no P0/P1 blockers. Surface a one-line summary to the user and proceed to Step 7 (PR/CI). If push authorization is durable, push and open the PR; otherwise ask.
+   - **Blockers found** — route them back to the same worker tab: `/quit` the review claude, relaunch dev claude, prompt with **both pointers**: the synthesis (`/tmp/review/<branch>/SYNTHESIS.md` AND `<repo>/.reviews/<branch>/SYNTHESIS.md`) AND the per-cluster findings dir (`/tmp/review/<branch>/findings/`). Cite the top P0/P1 items inline in the prompt, but tell the worker to read the full synthesis + findings before starting. Loop back to Step 5.
    - **Ambiguous** — the review found possible issues but they're judgment calls. Surface to the user with your read on each.
+
+   **Do not** summarize the synthesis into your prompt at the cost of dropping detail. The synthesis has cross-cluster correlations, line-numbered cites, and remediation code snippets that your summary will lose. Give the worker the full document and let them parse it.
 
 ## Step 7: PR and CI monitoring
 
