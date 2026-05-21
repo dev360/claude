@@ -239,6 +239,31 @@ For each completed worker, reuse the SAME tab — dev and review are sequential:
 
    **Do not** summarize the synthesis into your prompt at the cost of dropping detail. The synthesis has cross-cluster correlations, line-numbered cites, and remediation code snippets that your summary will lose. Give the worker the full document and let them parse it.
 
+## Step 6.5: Fix the review findings (same tab, fresh session)
+
+**After the review finishes synthesizing**, the agent in the tab has produced a P0–P3 summary in its TUI output AND written individual findings files to `/tmp/review/<branch>/findings/*.md`. Don't ask the review agent to fix the issues itself — it's now context-heavy. Close it and start a fresh agent in the same tab to do the remediation work.
+
+1. **`/quit` the review claude.**
+   ```bash
+   zellij --session <project>-workers action go-to-tab-name <slug>
+   zellij --session <project>-workers action write-chars "/quit"
+   zellij --session <project>-workers action write 13
+   sleep 3
+   ```
+2. **Re-launch claude in the same tab and point it at the findings.** The fix agent reads MEMORY.md for branch context AND the review findings to know what to fix:
+   ```bash
+   zellij --session <project>-workers action write-chars "claude --dangerously-skip-permissions"
+   zellij --session <project>-workers action write 13
+   sleep 8
+   zellij --session <project>-workers action write-chars "Read MEMORY.md (this worktree) and the review findings at /tmp/review/<branch-with-slashes-replaced-by-dashes>/findings/*.md. Fix all P0 and P1 issues; address P2 where straightforward. Commit fixes to this branch with a 'fix:' or 'refactor:' commit type. Do not push."
+   zellij --session <project>-workers action write 13
+   ```
+   The branch path uses dashes: `refactor/calamine-read-backend` → `/tmp/review/refactor-calamine-read-backend/`.
+
+3. **Wait for fixes**, then loop back to Step 6 (re-review) OR proceed to Step 7 (push + CI) depending on user direction. If you re-review, you're in the same tab again — `/quit`, re-launch, `/review:review`.
+
+If the review found **no P0/P1 issues**, you can skip Step 6.5 and proceed to push.
+
 ## Step 7: PR and CI monitoring
 
 If the user has GitHub access (`gh auth status` works) and the project is on GitHub:
