@@ -292,6 +292,8 @@ Panes in unattached sessions don't render, so `zellij --session <name> action du
 ### Gotcha 4: Focus is unreliable across `zellij action` calls
 Always run `go-to-tab-name <tab>` immediately before each block of `write-chars` + `write 13`, even if you "know" the tab is focused. The user typing to you switches focus to your tab as a side effect.
 
+**Sleep budget:** zellij's IPC is fast but the focus + render cycle is not instant. Empirically: `go-to-tab` → `dump-screen` with only 300–400ms between them sometimes returns an empty / partially-rendered buffer. Use **at least 0.6s** between `go-to-tab` and `dump-screen` for snapshot polling, and at least 0.4s between `write-chars` and `write 13`. When you observe a suspiciously empty / short dump, the cause is almost always too-tight timing — re-dump with a 1.0s sleep before deciding the tab is stuck.
+
 ### Gotcha 5: `setsid` isn't on macOS
 For detached zellij session creation, use `zellij attach -b <name>` (creates background session if missing). Don't reach for Linux `setsid` patterns.
 
