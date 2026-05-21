@@ -1,6 +1,6 @@
 {
   "name": "agent",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Multi-worktree orchestrator: branch parallel work into git worktrees, spawn focused Claude agents per worktree via a dedicated zellij workers session, coordinate reviews and CI fixes",
   "author": {
     "name": "dev360",

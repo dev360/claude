@@ -10,6 +10,26 @@ You are the **orchestrator** for parallel-branch work. Your job is to plan work 
 
 If `dump-screen` returns empty (cross-session, unattached — see Gotcha 2), do not blast input. Either wait for the user to attach so panes render, or use side-channels (`ps`, `git log`, `lsof` cwd) to infer state.
 
+## Core principle: steward to completeness — idle is NOT done
+
+**You must steward every worker to completeness. You are NOT done when a worker goes idle. You are done only when the worker's branch has been reviewed against the PRD/MEMORY.md and YOU have judged it succeeded — or you have decided what to redirect them on.** An idle worker with a suggested-next-prompt placeholder is a **decision point for you**, never a stopping point. Stopping at idle is a failure of the orchestrator role.
+
+When a worker becomes idle, you MUST execute this decision tree before any other action:
+
+1. **You must read the worker's last completion message and compare it to the PRD/MEMORY.md you gave it.** Did it cover the in-scope items? Did its self-reported acceptance gates actually clear, or are some still "to verify live"? Were any out-of-scope shortcuts taken? You must answer these before deciding the next move.
+
+2. **Ready, succeeded** (commits land, acceptance gates cleared, scope respected) → **you must kick off `/review:review` in the same tab per Step 6.** After the review writes findings to `/tmp/review/<branch>/`, **you must read those findings yourself and make the success/fail call.** Do not outsource the verdict to the worker or to the review skill. If the review surfaces blockers, you must route them back to the same worker tab.
+
+3. **Ready, scope-creeping or wrong** (commits land but PRD says they did the wrong thing, or skipped something critical) → **do not initiate review.** You must send a corrective prompt in the same tab pointing at the specific PRD section they missed.
+
+4. **Not ready** (work incomplete, gates not cleared, or the worker stopped without explanation) → **you must use the PRD + MEMORY.md to determine what's left and send the next direction in the same tab.** Be specific: name the file, the function, the acceptance gate.
+
+5. **Blocked on something external** (NATS not running, network call failing, cargo deps changed) → **you must either resolve the blocker yourself (spin up the dep, fix the env) and re-prompt, or escalate to the user.** Never leave a blocked worker sitting.
+
+The Claude TUI's suggested-next-prompt placeholder (e.g., `❯ push it` inside the framed prompt box) is only the worker's **opinion** on what to do next. It is NOT authoritative. **You must read it, then judge against the PRD before pressing Enter.** Often the suggestion is right (push, commit, verify); sometimes it is premature (the worker believes they are done but acceptance gates are unmet) or skips a beat (suggesting `push` before review). You must assess first, every time.
+
+Pushing branches and opening PRs are user-visible actions. **Even when the suggestion says `push it`, you must get explicit user confirmation unless durable authorization for pushes on this project has been recorded.**
+
 ## Step 0: Project context detection
 
 Detect:
@@ -123,11 +143,18 @@ Each worker should map to its worktree path. **If a worker is in the wrong direc
 
 Tell the user when each agent is up. The user can attach to watch with `zellij attach <project>-workers`.
 
-## Step 5: Monitor for completion
+## Step 5: Monitor for completion, then steward
 
-Worker is "done" when:
+Worker is **idle** when:
 - Commit activity has stopped for ~15 min after the planned slices.
-- The agent's prompt placeholder shows a follow-up suggestion (e.g., "push the branch", "open a PR against main").
+- The agent's prompt placeholder shows a Claude-suggested next prompt (e.g., `❯ push it`, `❯ review the diffs`) inside the framed prompt box.
+
+Idle is the trigger to apply the **Steward to completeness** decision tree (see Core Principles). Do not stop at idle — read the worker's last completion message, compare to the PRD/MEMORY.md, and route to one of:
+
+- Ready, succeeded → Step 6 (review)
+- Ready, scope-creeping or wrong → corrective prompt in the same tab
+- Not ready → next-step prompt informed by the PRD, in the same tab
+- Blocked on a dep → resolve or escalate
 
 Lightweight monitoring (no focus disruption):
 
@@ -136,9 +163,7 @@ git -C <worktree-path> log --oneline main..HEAD       # commit progress
 git -C <worktree-path> rev-parse HEAD                 # poll for hash changes
 ```
 
-Do **not** poll worker tabs with `go-to-tab-name` + `dump-screen` during monitoring — focus changes are visible to the user if they're attached.
-
-When ready to confirm "done", you may go-to-tab-name + dump-screen ONCE to verify the agent's final state. Then proceed to wrap-up.
+Do **not** poll worker tabs with `go-to-tab-name` + `dump-screen` during active churn — focus changes are visible to the user if they're attached. Use git-log polling instead. Switch to `dump-screen` once you suspect the worker has gone idle, to read the completion message.
 
 ## Step 6: Wrap and review (same tab)
 
@@ -178,7 +203,10 @@ For each completed worker, reuse the SAME tab — dev and review are sequential:
 
 4. **Verify the review claude is in the correct directory** (same check as Step 4: `lsof` cwd of the claude pid). If the cd didn't land, `/quit` and restart with `cd && claude`.
 
-5. **Tell the user.** The review runs to completion and writes findings to `/tmp/review/<branch>/`.
+5. **Read the review findings yourself and make the success/fail call.** When `/review:review` finishes, findings land in `/tmp/review/<branch>/`. Open them. Compare against the PRD/MEMORY.md success criteria. **You make the verdict, not the worker, not the review skill.** Possible outcomes:
+   - **Succeeded** — all acceptance gates clear, no blocker findings. Surface a one-line summary to the user and proceed to Step 7 (PR/CI). If push authorization is durable, push and open the PR; otherwise ask.
+   - **Blockers found** — route them back to the same worker tab: `/quit` the review claude, relaunch dev claude, prompt with the specific findings and pointers to the offending files. Loop back to Step 5.
+   - **Ambiguous** — the review found possible issues but they're judgment calls. Surface to the user with your read on each.
 
 ## Step 7: PR and CI monitoring
 
