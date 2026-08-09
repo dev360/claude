@@ -7,11 +7,13 @@ description: Bootstrap an orchestrator repo for parallel worktree development �
 
 Run N feature branches in parallel, each with its own database and services, without stepping on each other's ports, containers, or data. The tooling (mise scripts, port registry, shared compose file) lives in its own git repo — the **orchestrator** — while the actual project code stays in git submodules. That separation lets a team share the workflow and rebase the tooling independently of the projects it drives.
 
-> Skip the orchestrator repo (leave the top folder as an untracked scratch dir) only when it's just for you and you have no intention of sharing the workflow.
+**You always end up with at least two git repos**: the orchestrator repo (which you create) plus one or more project repos (which already exist and get pulled in as submodules). The section labels below — "one project" vs "several projects" — refer to *how many project repos* the orchestrator manages, not to the total git-repo count. In both cases the orchestrator itself is its own git repo.
+
+> Skip the orchestrator repo (leave the top folder as an untracked scratch dir) only when it's just for you and you have no intention of sharing the workflow. In that case the project repo is the only git repo involved.
 
 ## Repo shape
 
-### Single-repo (one project)
+### One project (orchestrator + one project repo = 2 git repos)
 
 ```
 <project>-orchestrator/           # git repo — holds tooling only
@@ -27,7 +29,7 @@ Run N feature branches in parallel, each with its own database and services, wit
         └── … (project files)
 ```
 
-### Multi-repo (several service repos that ship together)
+### Several projects (orchestrator + N project repos = N+1 git repos)
 
 ```
 <project>-orchestrator/
@@ -35,7 +37,7 @@ Run N feature branches in parallel, each with its own database and services, wit
 ├── .mise/scripts/
 ├── mise.toml
 ├── registry.toml
-├── services.toml                 # multi-repo only: name → remote + framework
+├── services.toml                 # only when there are multiple projects: name → remote + framework
 ├── docker-compose.yaml
 ├── main/
 │   ├── ui/                       # git submodule → the ui repo
@@ -61,15 +63,15 @@ All tasks are invoked from anywhere inside the orchestrator (scripts walk up to 
 
 | Task | What it does |
 |---|---|
-| `worktree:new <branch>` | Validate branch (must match `^(feat\|fix\|docs\|chore\|refactor\|perf\|test\|style\|build\|ci\|revert)/[a-z0-9][a-z0-9-]*$` — hard error otherwise). Derive slug from the part after `/`. Take flock on `registry.toml` and allocate the lowest free slot. Run `git worktree add` from inside each submodule under `main/` targeting `worktrees/<slug>[/<service>]`. Create per-worktree Postgres DB `<project>_<slug>`. Write `.env.local` with `WORKTREE_SLUG`, `COMPOSE_PROJECT_NAME=wt-<project>-<slug>`, `DATABASE_URL`, `REDIS_KEY_PREFIX=wt:<slug>:`, `NATS_SUBJECT_PREFIX=wt.<slug>.`, and `<SERVICE>_PORT=base+slot*10` per service class. Multi-repo: launch the sync TUI to pick which services to check out. |
+| `worktree:new <branch>` | Validate branch (must match `^(feat\|fix\|docs\|chore\|refactor\|perf\|test\|style\|build\|ci\|revert)/[a-z0-9][a-z0-9-]*$` — hard error otherwise). Derive slug from the part after `/`. Take flock on `registry.toml` and allocate the lowest free slot. Run `git worktree add` from inside each submodule under `main/` targeting `worktrees/<slug>[/<service>]`. Create per-worktree Postgres DB `<project>_<slug>`. Write `.env.local` with `WORKTREE_SLUG`, `COMPOSE_PROJECT_NAME=wt-<project>-<slug>`, `DATABASE_URL`, `REDIS_KEY_PREFIX=wt:<slug>:`, `NATS_SUBJECT_PREFIX=wt.<slug>.`, and `<SERVICE>_PORT=base+slot*10` per service class. When several projects are attached, launch the sync TUI to pick which of them to check out into this worktree. |
 | `worktree:dev [<slug>]` | `docker compose up -d` for the worktree. No arg = detect the slug from CWD via the `.worktree-slug` sentinel. |
 | `worktree:logs [<slug>]` | Follow logs of every service in the worktree. |
 | `worktree:pull [<slug>]` | `git pull --rebase origin main` in each service directory of the worktree. |
-| `worktree:sync [<slug>]` | Multi-repo only. TUI to add/remove services from an existing worktree; adds do `git worktree add` from the matching submodule, removes call `git worktree remove`. |
+| `worktree:sync [<slug>]` | Only meaningful when several projects are attached. TUI to add/remove projects from an existing worktree; adds do `git worktree add` from the matching submodule, removes call `git worktree remove`. |
 | `worktree:kill <slug>` | `docker compose down -v` for the worktree, drop the per-worktree Postgres DB, `git worktree remove` each service dir, delete the folder, free the slot in `registry.toml`. Refuses to kill `main`. |
 | `worktree:ls` | Print the registry as a table (slug, slot, branch, services, created-at). |
 
-### Per-service (generated from `services.toml` in multi-repo, or from framework detection in single-repo)
+### Per-service (generated from `services.toml`, or from framework detection when there's only one project)
 
 | Task | What it does |
 |---|---|
